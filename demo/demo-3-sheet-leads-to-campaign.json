@@ -1,0 +1,38 @@
+{
+  "name": "Demo 3 — Sheet leads → bulk call campaign",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": { "item": [{ "mode": "everyMinute" }] },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "id": "sheets-trigger-1",
+      "name": "New lead in sheet",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "resource": "bulkCall",
+        "operation": "addContact",
+        "toNumber": "={{ $json.phone }}",
+        "customVariables": "={{ JSON.stringify({ name: $json.name, source: 'google-sheet-lead' }) }}",
+        "metadata": "={{ JSON.stringify({ sheet_row: $json.row_number }) }}"
+      },
+      "id": "omni-add-contact-1",
+      "name": "Add lead to campaign",
+      "type": "CUSTOM.omniDimension",
+      "typeVersion": 1,
+      "position": [260, 0]
+    }
+  ],
+  "connections": {
+    "New lead in sheet": {
+      "main": [[{ "node": "Add lead to campaign", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {}
+}

@@ -1,0 +1,103 @@
+{
+  "name": "Demo 2 — Post-call automation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "omni-trigger-1",
+      "name": "On Call Completed",
+      "type": "CUSTOM.omniDimensionTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "webhookId": "demo-omni-call-completed"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "typeValidation": "loose", "version": 2 },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.call_report.sentiment }}",
+              "rightValue": "positive",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-sentiment-1",
+      "name": "Positive sentiment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "action",
+              "value": "🔥 Hot lead → notify sales / push to CRM",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "caller",
+              "value": "={{ $('On Call Completed').item.json.phone_number }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "summary",
+              "value": "={{ $('On Call Completed').item.json.call_report.summary }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-hot-1",
+      "name": "Hot lead",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, -100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "action",
+              "value": "📋 Log for follow-up",
+              "type": "string"
+            },
+            {
+              "id": "b2",
+              "name": "caller",
+              "value": "={{ $('On Call Completed').item.json.phone_number }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-log-1",
+      "name": "Log for follow-up",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 100]
+    }
+  ],
+  "connections": {
+    "On Call Completed": {
+      "main": [[{ "node": "Positive sentiment?", "type": "main", "index": 0 }]]
+    },
+    "Positive sentiment?": {
+      "main": [
+        [{ "node": "Hot lead", "type": "main", "index": 0 }],
+        [{ "node": "Log for follow-up", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {}
+}

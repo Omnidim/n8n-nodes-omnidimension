@@ -1,0 +1,55 @@
+{
+  "name": "Demo 4 — Post-call results → sheet",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "omni-trigger-2",
+      "name": "On Call Completed",
+      "type": "CUSTOM.omniDimensionTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "webhookId": "demo-omni-post-call-log"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "c1", "name": "caller", "value": "={{ $json.phone_number }}", "type": "string" },
+            { "id": "c2", "name": "agent", "value": "={{ $json.bot_name }}", "type": "string" },
+            { "id": "c3", "name": "status", "value": "={{ $json.call_status }}", "type": "string" },
+            { "id": "c4", "name": "duration_sec", "value": "={{ $json.call_duration }}", "type": "string" },
+            { "id": "c5", "name": "sentiment", "value": "={{ $json.call_report?.sentiment }}", "type": "string" },
+            { "id": "c6", "name": "summary", "value": "={{ $json.call_report?.summary }}", "type": "string" },
+            { "id": "c7", "name": "recording", "value": "={{ $json.recording_url }}", "type": "string" }
+          ]
+        }
+      },
+      "id": "set-row-1",
+      "name": "Shape row",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "options": {}
+      },
+      "id": "sheets-append-1",
+      "name": "Append to results sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [480, 0]
+    }
+  ],
+  "connections": {
+    "On Call Completed": {
+      "main": [[{ "node": "Shape row", "type": "main", "index": 0 }]]
+    },
+    "Shape row": {
+      "main": [[{ "node": "Append to results sheet", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {}
+}

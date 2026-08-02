@@ -1,0 +1,697 @@
+import type {
+	IDataObject,
+	IExecuteFunctions,
+	IHttpRequestMethods,
+	ILoadOptionsFunctions,
+	INodeExecutionData,
+	INodePropertyOptions,
+	INodeType,
+	INodeTypeDescription,
+} from 'n8n-workflow';
+import { NodeOperationError } from 'n8n-workflow';
+
+async function omniRequest(
+	ctx: IExecuteFunctions | ILoadOptionsFunctions,
+	method: IHttpRequestMethods,
+	path: string,
+	body?: IDataObject,
+	qs?: IDataObject,
+): Promise<IDataObject> {
+	const credentials = await ctx.getCredentials('omniDimensionApi');
+	return ctx.helpers.httpRequestWithAuthentication.call(ctx, 'omniDimensionApi', {
+		method,
+		url: `${credentials.baseUrl}${path}`,
+		body,
+		qs,
+		json: true,
+	});
+}
+
+export class OmniDimension implements INodeType {
+	description: INodeTypeDescription = {
+		displayName: 'OmniDimension',
+		name: 'omniDimension',
+		icon: 'file:omnidimension.svg',
+		group: ['transform'],
+		version: 1,
+		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
+		description: 'Interact with OmniDimension voice AI agents',
+		defaults: { name: 'OmniDimension' },
+		usableAsTool: true,
+		inputs: ['main'],
+		outputs: ['main'],
+		credentials: [{ name: 'omniDimensionApi', required: true }],
+		properties: [
+			{
+				displayName: 'Resource',
+				name: 'resource',
+				type: 'options',
+				noDataExpression: true,
+				options: [
+					{ name: 'Agent', value: 'agent' },
+					{ name: 'Bulk Call', value: 'bulkCall' },
+					{ name: 'Call', value: 'call' },
+					{ name: 'Knowledge Base', value: 'knowledgeBase' },
+					{ name: 'Phone Number', value: 'phoneNumber' },
+				],
+				default: 'call',
+			},
+
+			// ----------------------------- agent -----------------------------
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['agent'] } },
+				options: [
+					{
+						name: 'Create',
+						value: 'create',
+						action: 'Create an agent',
+						description: 'Create a new voice agent',
+					},
+					{
+						name: 'Get',
+						value: 'get',
+						action: 'Get an agent',
+						description: 'Get one agent with its full configuration',
+					},
+					{
+						name: 'Get Many',
+						value: 'getAll',
+						action: 'Get many agents',
+						description: 'List agents in the account',
+					},
+				],
+				default: 'getAll',
+			},
+			{
+				displayName: 'Agent Name or ID',
+				name: 'agentId',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'getAgents' },
+				displayOptions: { show: { resource: ['agent'], operation: ['get'] } },
+				default: '',
+				required: true,
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Name',
+				name: 'name',
+				type: 'string',
+				displayOptions: { show: { resource: ['agent'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Name of the new agent',
+			},
+			{
+				displayName: 'Agent Configuration (JSON)',
+				name: 'agentConfig',
+				type: 'json',
+				displayOptions: { show: { resource: ['agent'], operation: ['create'] } },
+				default: '{\n  "context_breakdown": [\n    { "title": "Purpose", "body": "You are a helpful voice assistant." }\n  ]\n}',
+				required: true,
+				description:
+					'Agent configuration merged with the name. Must include context_breakdown. See https://docs.omnidim.io/docs/api-reference for the full schema.',
+			},
+			{
+				displayName: 'Filters',
+				name: 'agentFilters',
+				type: 'collection',
+				placeholder: 'Add Filter',
+				displayOptions: { show: { resource: ['agent'], operation: ['getAll'] } },
+				default: {},
+				options: [
+					{
+						displayName: 'Name Contains',
+						name: 'name',
+						type: 'string',
+						default: '',
+						description: 'Filter agents by name substring',
+					},
+					{
+						displayName: 'Page',
+						name: 'pageno',
+						type: 'number',
+						typeOptions: { minValue: 1 },
+						default: 1,
+					},
+					{
+						displayName: 'Page Size',
+						name: 'pagesize',
+						type: 'number',
+						typeOptions: { minValue: 1, maxValue: 150 },
+						default: 30,
+					},
+				],
+			},
+
+			// --------------------------- bulk call ---------------------------
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['bulkCall'] } },
+				options: [
+					{
+						name: 'Add Contact',
+						value: 'addContact',
+						action: 'Add a contact to a campaign',
+						description: 'Push a contact into a dynamic campaign queue',
+					},
+					{
+						name: 'Cancel',
+						value: 'cancel',
+						action: 'Cancel a bulk call campaign',
+					},
+					{
+						name: 'Create',
+						value: 'create',
+						action: 'Create a bulk call campaign',
+					},
+					{
+						name: 'Get',
+						value: 'get',
+						action: 'Get a bulk call campaign',
+						description: 'Get campaign details',
+					},
+					{
+						name: 'Get Live Status',
+						value: 'getLiveStatus',
+						action: 'Get live status of a campaign',
+					},
+					{
+						name: 'Get Many',
+						value: 'getAll',
+						action: 'Get many bulk call campaigns',
+					},
+					{
+						name: 'Pause',
+						value: 'pause',
+						action: 'Pause a campaign',
+					},
+					{
+						name: 'Reschedule',
+						value: 'reschedule',
+						action: 'Reschedule a campaign',
+					},
+					{
+						name: 'Resume',
+						value: 'resume',
+						action: 'Resume a campaign',
+					},
+				],
+				default: 'addContact',
+			},
+			{
+				displayName: 'Campaign Name or ID',
+				name: 'campaignId',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'getBulkCalls' },
+				displayOptions: {
+					show: {
+						resource: ['bulkCall'],
+						operation: [
+							'addContact',
+							'cancel',
+							'get',
+							'getLiveStatus',
+							'pause',
+							'reschedule',
+							'resume',
+						],
+					},
+				},
+				default: '',
+				required: true,
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Name',
+				name: 'name',
+				type: 'string',
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Name of the campaign',
+			},
+			{
+				displayName: 'Phone Number Name or ID',
+				name: 'phoneNumberId',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'getPhoneNumbers' },
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description:
+					'Number the campaign calls from. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			},
+			{
+				displayName: 'Dynamic Campaign',
+				name: 'isDynamic',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['create'] } },
+				default: true,
+				description:
+					'Whether contacts are pushed in over time via Add Contact (dynamic) instead of a fixed upfront list',
+			},
+			{
+				displayName: 'Contacts (JSON)',
+				name: 'contactList',
+				type: 'json',
+				displayOptions: {
+					show: { resource: ['bulkCall'], operation: ['create'], isDynamic: [false] },
+				},
+				default: '[]',
+				description:
+					'Upfront contact list for a static campaign, e.g. [{"to_number": "+15551234567", "custom_variables": {"name": "Ravi"}}]',
+			},
+			{
+				displayName: 'Additional Options (JSON)',
+				name: 'bulkCallOptions',
+				type: 'json',
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['create'] } },
+				default: '{}',
+				description:
+					'Any other create fields: is_scheduled, scheduled_datetime, timezone, concurrent_call_limit, enabled_reschedule_call, retry_config',
+			},
+			{
+				displayName: 'To Number',
+				name: 'toNumber',
+				type: 'string',
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['addContact'] } },
+				default: '',
+				required: true,
+				placeholder: '+15551234567',
+				description: 'Contact number in E.164 format. The campaign must be dynamic.',
+			},
+			{
+				displayName: 'Custom Variables (JSON)',
+				name: 'customVariables',
+				type: 'json',
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['addContact'] } },
+				default: '{}',
+				description: 'Key-value context passed to the agent for this contact',
+			},
+			{
+				displayName: 'Metadata (JSON)',
+				name: 'metadata',
+				type: 'json',
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['addContact'] } },
+				default: '{}',
+				description: 'Your own tracking data. Not passed to the agent.',
+			},
+			{
+				displayName: 'New Scheduled Datetime',
+				name: 'newScheduledDatetime',
+				type: 'string',
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['reschedule'] } },
+				default: '',
+				required: true,
+				placeholder: '2026-08-05 15:00:00',
+				description: 'New start time for the campaign',
+			},
+			{
+				displayName: 'New Timezone',
+				name: 'newTimezone',
+				type: 'string',
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['reschedule'] } },
+				default: '',
+				placeholder: 'America/New_York',
+			},
+			{
+				displayName: 'Filters',
+				name: 'bulkCallFilters',
+				type: 'collection',
+				placeholder: 'Add Filter',
+				displayOptions: { show: { resource: ['bulkCall'], operation: ['getAll'] } },
+				default: {},
+				options: [
+					{
+						displayName: 'Page',
+						name: 'pageno',
+						type: 'number',
+						typeOptions: { minValue: 1 },
+						default: 1,
+					},
+					{
+						displayName: 'Page Size',
+						name: 'pagesize',
+						type: 'number',
+						typeOptions: { minValue: 1, maxValue: 150 },
+						default: 10,
+					},
+					{
+						displayName: 'Status',
+						name: 'status',
+						type: 'string',
+						default: '',
+						description: 'Filter campaigns by status, e.g. in_progress, completed',
+					},
+				],
+			},
+
+			// ----------------------------- call -----------------------------
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['call'] } },
+				options: [
+					{
+						name: 'Dispatch',
+						value: 'dispatch',
+						action: 'Dispatch a call',
+						description: 'Place an outbound call with an agent',
+					},
+					{
+						name: 'Get Log',
+						value: 'getLog',
+						action: 'Get a call log',
+						description: 'Get one call log (transcript, sentiment, extracted variables)',
+					},
+					{
+						name: 'Get Many Logs',
+						value: 'getAllLogs',
+						action: 'Get many call logs',
+						description: 'List call logs in the account',
+					},
+				],
+				default: 'dispatch',
+			},
+			{
+				displayName: 'Agent Name or ID',
+				name: 'agentId',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'getAgents' },
+				displayOptions: { show: { resource: ['call'], operation: ['dispatch'] } },
+				default: '',
+				required: true,
+				description:
+					'Agent that makes the call. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			},
+			{
+				displayName: 'To Number',
+				name: 'toNumber',
+				type: 'string',
+				displayOptions: { show: { resource: ['call'], operation: ['dispatch'] } },
+				default: '',
+				required: true,
+				placeholder: '+15551234567',
+				description: 'Destination number in E.164 format (leading +, country code)',
+			},
+			{
+				displayName: 'From Number Name or ID',
+				name: 'fromNumberId',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'getPhoneNumbers' },
+				displayOptions: { show: { resource: ['call'], operation: ['dispatch'] } },
+				default: '',
+				description:
+					'Number to call from. Leave empty to use the agent\'s default. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			},
+			{
+				displayName: 'Call Context (JSON)',
+				name: 'callContext',
+				type: 'json',
+				displayOptions: { show: { resource: ['call'], operation: ['dispatch'] } },
+				default: '{}',
+				description:
+					'Key-value context passed to the agent for this call, e.g. {"name": "Ravi", "order_id": "1234"}',
+			},
+			{
+				displayName: 'Call Log ID',
+				name: 'callLogId',
+				type: 'string',
+				displayOptions: { show: { resource: ['call'], operation: ['getLog'] } },
+				default: '',
+				required: true,
+			},
+			{
+				displayName: 'Filters',
+				name: 'callLogFilters',
+				type: 'collection',
+				placeholder: 'Add Filter',
+				displayOptions: { show: { resource: ['call'], operation: ['getAllLogs'] } },
+				default: {},
+				options: [
+					{
+						displayName: 'Page',
+						name: 'pageno',
+						type: 'number',
+						typeOptions: { minValue: 1 },
+						default: 1,
+					},
+					{
+						displayName: 'Page Size',
+						name: 'pagesize',
+						type: 'number',
+						typeOptions: { minValue: 1, maxValue: 150 },
+						default: 30,
+					},
+				],
+			},
+
+			// ------------------------- knowledge base -------------------------
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['knowledgeBase'] } },
+				options: [
+					{
+						name: 'Get Many',
+						value: 'getAll',
+						action: 'Get many knowledge base files',
+						description: 'List knowledge base files',
+					},
+					{
+						name: 'Upload',
+						value: 'upload',
+						action: 'Upload a knowledge base file',
+						description: 'Upload a PDF to the knowledge base',
+					},
+				],
+				default: 'getAll',
+			},
+			{
+				displayName: 'Input Binary Field',
+				name: 'binaryPropertyName',
+				type: 'string',
+				displayOptions: { show: { resource: ['knowledgeBase'], operation: ['upload'] } },
+				default: 'data',
+				required: true,
+				hint: 'The name of the input binary field containing the PDF',
+			},
+			{
+				displayName: 'File Name',
+				name: 'filename',
+				type: 'string',
+				displayOptions: { show: { resource: ['knowledgeBase'], operation: ['upload'] } },
+				default: '',
+				placeholder: 'document.pdf',
+				description: 'Overrides the binary file name. Must end in .pdf.',
+			},
+
+			// -------------------------- phone number --------------------------
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['phoneNumber'] } },
+				options: [
+					{
+						name: 'Get Many',
+						value: 'getAll',
+						action: 'Get many phone numbers',
+						description: 'List phone numbers in the account',
+					},
+				],
+				default: 'getAll',
+			},
+		],
+	};
+
+	methods = {
+		loadOptions: {
+			async getAgents(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const response = await omniRequest(this, 'GET', '/agents', undefined, {
+					pageno: 1,
+					pagesize: 150,
+				});
+				const bots = (response.bots as IDataObject[]) ?? [];
+				return bots.map((bot) => ({
+					name: String(bot.name ?? bot.id),
+					value: String(bot.id),
+				}));
+			},
+			async getBulkCalls(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const response = await omniRequest(this, 'GET', '/calls/bulk_call', undefined, {
+					pageno: 1,
+					pagesize: 150,
+				});
+				const records = (response.records as IDataObject[]) ?? [];
+				return records.map((c) => ({
+					name: String(c.name ?? c.id),
+					value: String(c.id),
+				}));
+			},
+			async getPhoneNumbers(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const response = await omniRequest(this, 'GET', '/phone_number/list', undefined, {
+					pageno: 1,
+					pagesize: 150,
+				});
+				const numbers = (response.phone_numbers as IDataObject[]) ?? [];
+				return numbers.map((n) => ({
+					name: n.name ? `${n.phone_number} (${n.name})` : String(n.phone_number),
+					value: String(n.id),
+				}));
+			},
+		},
+	};
+
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		const items = this.getInputData();
+		const returnData: INodeExecutionData[] = [];
+		const resource = this.getNodeParameter('resource', 0) as string;
+		const operation = this.getNodeParameter('operation', 0) as string;
+
+		for (let i = 0; i < items.length; i++) {
+			try {
+				let response: IDataObject;
+
+				if (resource === 'agent' && operation === 'getAll') {
+					const filters = this.getNodeParameter('agentFilters', i, {}) as IDataObject;
+					response = await omniRequest(this, 'GET', '/agents', undefined, filters);
+				} else if (resource === 'agent' && operation === 'get') {
+					const agentId = this.getNodeParameter('agentId', i) as string;
+					response = await omniRequest(this, 'GET', `/agents/${agentId}`);
+				} else if (resource === 'agent' && operation === 'create') {
+					const name = this.getNodeParameter('name', i) as string;
+					const config = parseJsonParameter(this, 'agentConfig', i);
+					response = await omniRequest(this, 'POST', '/agents/create', { name, ...config });
+				} else if (resource === 'bulkCall' && operation === 'create') {
+					const body: IDataObject = {
+						name: this.getNodeParameter('name', i) as string,
+						phone_number_id: this.getNodeParameter('phoneNumberId', i) as string,
+						is_dynamic: this.getNodeParameter('isDynamic', i) as boolean,
+						...parseJsonParameter(this, 'bulkCallOptions', i),
+					};
+					if (!body.is_dynamic) {
+						const contacts = this.getNodeParameter('contactList', i, '[]');
+						body.contact_list =
+							typeof contacts === 'string' ? JSON.parse(contacts || '[]') : contacts;
+					}
+					response = await omniRequest(this, 'POST', '/calls/bulk_call/create', body);
+				} else if (resource === 'bulkCall' && operation === 'addContact') {
+					const campaignId = this.getNodeParameter('campaignId', i) as string;
+					response = await omniRequest(this, 'POST', `/calls/bulk_call/${campaignId}/add_contact`, {
+						to_number: this.getNodeParameter('toNumber', i) as string,
+						custom_variables: parseJsonParameter(this, 'customVariables', i),
+						metadata: parseJsonParameter(this, 'metadata', i),
+					});
+				} else if (resource === 'bulkCall' && operation === 'getAll') {
+					const filters = this.getNodeParameter('bulkCallFilters', i, {}) as IDataObject;
+					response = await omniRequest(this, 'GET', '/calls/bulk_call', undefined, filters);
+				} else if (resource === 'bulkCall' && operation === 'get') {
+					const campaignId = this.getNodeParameter('campaignId', i) as string;
+					response = await omniRequest(this, 'GET', `/calls/bulk_call/${campaignId}`);
+				} else if (resource === 'bulkCall' && operation === 'getLiveStatus') {
+					const campaignId = this.getNodeParameter('campaignId', i) as string;
+					// note: this endpoint uses hyphens and no /calls prefix, unlike its siblings
+					response = await omniRequest(this, 'GET', `/bulk-call/${campaignId}/live-status`);
+				} else if (resource === 'bulkCall' && (operation === 'pause' || operation === 'resume')) {
+					const campaignId = this.getNodeParameter('campaignId', i) as string;
+					response = await omniRequest(this, 'PUT', `/calls/bulk_call/${campaignId}`, {
+						action: operation,
+					});
+				} else if (resource === 'bulkCall' && operation === 'reschedule') {
+					const campaignId = this.getNodeParameter('campaignId', i) as string;
+					const body: IDataObject = {
+						action: 'reschedule',
+						new_scheduled_datetime: this.getNodeParameter('newScheduledDatetime', i) as string,
+					};
+					const newTimezone = this.getNodeParameter('newTimezone', i, '') as string;
+					if (newTimezone) body.new_timezone = newTimezone;
+					response = await omniRequest(this, 'PUT', `/calls/bulk_call/${campaignId}`, body);
+				} else if (resource === 'bulkCall' && operation === 'cancel') {
+					const campaignId = this.getNodeParameter('campaignId', i) as string;
+					response = await omniRequest(this, 'DELETE', `/calls/bulk_call/${campaignId}`);
+				} else if (resource === 'call' && operation === 'dispatch') {
+					const body: IDataObject = {
+						agent_id: Number(this.getNodeParameter('agentId', i)),
+						to_number: this.getNodeParameter('toNumber', i) as string,
+						call_context: parseJsonParameter(this, 'callContext', i),
+					};
+					const fromNumberId = this.getNodeParameter('fromNumberId', i, '') as string;
+					if (fromNumberId) body.from_number_id = Number(fromNumberId);
+					response = await omniRequest(this, 'POST', '/calls/dispatch', body);
+				} else if (resource === 'call' && operation === 'getLog') {
+					const callLogId = this.getNodeParameter('callLogId', i) as string;
+					response = await omniRequest(this, 'GET', `/calls/logs/${callLogId}`);
+				} else if (resource === 'call' && operation === 'getAllLogs') {
+					const filters = this.getNodeParameter('callLogFilters', i, {}) as IDataObject;
+					response = await omniRequest(this, 'GET', '/calls/logs', undefined, filters);
+				} else if (resource === 'knowledgeBase' && operation === 'getAll') {
+					response = await omniRequest(this, 'GET', '/knowledge_base/list');
+				} else if (resource === 'knowledgeBase' && operation === 'upload') {
+					const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i) as string;
+					const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
+					const buffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
+					const filename =
+						(this.getNodeParameter('filename', i, '') as string) ||
+						binaryData.fileName ||
+						'document.pdf';
+					if (!filename.toLowerCase().endsWith('.pdf')) {
+						throw new NodeOperationError(
+							this.getNode(),
+							'OmniDimension knowledge base only accepts PDF files',
+							{ itemIndex: i },
+						);
+					}
+					response = await omniRequest(this, 'POST', '/knowledge_base/create', {
+						file: buffer.toString('base64'),
+						filename,
+					});
+				} else if (resource === 'phoneNumber' && operation === 'getAll') {
+					response = await omniRequest(this, 'GET', '/phone_number/list');
+				} else {
+					throw new NodeOperationError(
+						this.getNode(),
+						`Unsupported operation "${operation}" for resource "${resource}"`,
+						{ itemIndex: i },
+					);
+				}
+
+				returnData.push({ json: response, pairedItem: { item: i } });
+			} catch (error) {
+				if (this.continueOnFail()) {
+					returnData.push({ json: { error: error.message }, pairedItem: { item: i } });
+					continue;
+				}
+				throw error;
+			}
+		}
+
+		return [returnData];
+	}
+}
+
+function parseJsonParameter(ctx: IExecuteFunctions, name: string, itemIndex: number): IDataObject {
+	const raw = ctx.getNodeParameter(name, itemIndex, '{}');
+	if (typeof raw === 'object' && raw !== null) return raw as IDataObject;
+	try {
+		return JSON.parse((raw as string) || '{}');
+	} catch {
+		throw new NodeOperationError(ctx.getNode(), `Parameter "${name}" is not valid JSON`, {
+			itemIndex,
+		});
+	}
+}
