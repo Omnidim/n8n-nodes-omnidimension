@@ -107,14 +107,133 @@ export class OmniDimension implements INodeType {
 				description: 'Name of the new agent',
 			},
 			{
-				displayName: 'Agent Configuration (JSON)',
-				name: 'agentConfig',
+				displayName: 'Context Breakdown',
+				name: 'contextBreakdown',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: true, sortable: true },
+				displayOptions: { show: { resource: ['agent'], operation: ['create'] } },
+				default: {
+					sections: [{ title: 'Purpose', body: 'You are a helpful voice assistant.' }],
+				},
+				required: true,
+				placeholder: 'Add Section',
+				description:
+					'The agent\'s instructions, split into titled sections (persona, purpose, rules, FAQ, …)',
+				options: [
+					{
+						displayName: 'Section',
+						name: 'sections',
+						values: [
+							{
+								displayName: 'Title',
+								name: 'title',
+								type: 'string',
+								default: '',
+								placeholder: 'Purpose',
+							},
+							{
+								displayName: 'Body',
+								name: 'body',
+								type: 'string',
+								typeOptions: { rows: 4 },
+								default: '',
+								placeholder: 'You are a friendly sales assistant for…',
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Welcome Message',
+				name: 'welcomeMessage',
+				type: 'string',
+				displayOptions: { show: { resource: ['agent'], operation: ['create'] } },
+				default: '',
+				placeholder: 'Hi, this is Alex from OmniDimension!',
+				description: 'The first thing the agent says on a call',
+			},
+			{
+				displayName: 'Call Type',
+				name: 'callType',
+				type: 'options',
+				displayOptions: { show: { resource: ['agent'], operation: ['create'] } },
+				options: [
+					{ name: 'Incoming', value: 'Incoming' },
+					{ name: 'Outgoing', value: 'Outgoing' },
+				],
+				default: 'Outgoing',
+				description: 'Whether the agent handles inbound or outbound calls',
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'agentAdditionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				displayOptions: { show: { resource: ['agent'], operation: ['create'] } },
+				default: {},
+				options: [
+					{
+						displayName: 'Allow Interruption',
+						name: 'is_interruption_allowed',
+						type: 'boolean',
+						default: true,
+						description: 'Whether the caller can interrupt the agent while it speaks',
+					},
+					{
+						displayName: 'Dynamic Welcome Message',
+						name: 'is_welcome_message_dynamic',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to generate the welcome message dynamically per call',
+					},
+					{
+						displayName: 'LLM Model',
+						name: 'modelName',
+						type: 'string',
+						default: '',
+						placeholder: 'gpt-4o, claude-3-5-sonnet-latest, gemini-2.5-flash…',
+						description: 'Which LLM powers the agent. See docs for the current list.',
+					},
+					{
+						displayName: 'LLM Temperature',
+						name: 'modelTemperature',
+						type: 'number',
+						typeOptions: { minValue: 0, maxValue: 2, numberPrecision: 1 },
+						default: 0.7,
+					},
+					{
+						displayName: 'Voice ID',
+						name: 'voiceId',
+						type: 'string',
+						default: '',
+						description:
+							'Provider-specific voice ID. Browse voices with GET /providers/voices or in the dashboard.',
+					},
+					{
+						displayName: 'Voice Provider',
+						name: 'voiceProvider',
+						type: 'string',
+						default: '',
+						placeholder: 'eleven_labs, deepgram, cartesia, google…',
+					},
+					{
+						displayName: 'Voice Speed',
+						name: 'voiceSpeed',
+						type: 'number',
+						typeOptions: { minValue: 0.5, maxValue: 2, numberPrecision: 2 },
+						default: 1,
+						description: 'Speech speed multiplier',
+					},
+				],
+			},
+			{
+				displayName: 'Advanced Configuration (JSON)',
+				name: 'agentAdvanced',
 				type: 'json',
 				displayOptions: { show: { resource: ['agent'], operation: ['create'] } },
-				default: '{\n  "context_breakdown": [\n    { "title": "Purpose", "body": "You are a helpful voice assistant." }\n  ]\n}',
-				required: true,
+				default: '{}',
 				description:
-					'Agent configuration merged with the name. Must include context_breakdown. See https://docs.omnidim.io/docs/api-reference for the full schema.',
+					'Any other agent settings merged into the request as-is: transcriber, post_call_actions, web_search, filler, background_track, voicemail, end_call. See https://docs.omnidim.io/docs/api-reference.',
 			},
 			{
 				displayName: 'Filters',
@@ -271,13 +390,57 @@ export class OmniDimension implements INodeType {
 					'Upfront contact list for a static campaign, e.g. [{"to_number": "+15551234567", "custom_variables": {"name": "Ravi"}}]',
 			},
 			{
-				displayName: 'Additional Options (JSON)',
+				displayName: 'Additional Fields',
 				name: 'bulkCallOptions',
-				type: 'json',
+				type: 'collection',
+				placeholder: 'Add Field',
 				displayOptions: { show: { resource: ['bulkCall'], operation: ['create'] } },
-				default: '{}',
-				description:
-					'Any other create fields: is_scheduled, scheduled_datetime, timezone, concurrent_call_limit, enabled_reschedule_call, retry_config',
+				default: {},
+				options: [
+					{
+						displayName: 'Concurrent Call Limit',
+						name: 'concurrent_call_limit',
+						type: 'number',
+						typeOptions: { minValue: 1 },
+						default: 1,
+						description: 'How many calls the campaign runs in parallel',
+					},
+					{
+						displayName: 'Enable Reschedule',
+						name: 'enabled_reschedule_call',
+						type: 'boolean',
+						default: false,
+						description: 'Whether the agent can reschedule calls with the contact',
+					},
+					{
+						displayName: 'Retry Config (JSON)',
+						name: 'retry_config',
+						type: 'json',
+						default: '{}',
+						description: 'E.g. {"auto_retry": true, "auto_retry_schedule": "after_1_hour", "retry_limit": 2}.',
+					},
+					{
+						displayName: 'Scheduled',
+						name: 'is_scheduled',
+						type: 'boolean',
+						default: false,
+						description: 'Whether the campaign starts at a scheduled time instead of immediately',
+					},
+					{
+						displayName: 'Scheduled Datetime',
+						name: 'scheduled_datetime',
+						type: 'string',
+						default: '',
+						placeholder: '2026-08-05 15:00:00',
+					},
+					{
+						displayName: 'Timezone',
+						name: 'timezone',
+						type: 'string',
+						default: '',
+						placeholder: 'America/New_York',
+					},
+				],
 			},
 			{
 				displayName: 'To Number',
@@ -574,15 +737,52 @@ export class OmniDimension implements INodeType {
 					const agentId = this.getNodeParameter('agentId', i) as string;
 					response = await omniRequest(this, 'GET', `/agents/${agentId}`);
 				} else if (resource === 'agent' && operation === 'create') {
-					const name = this.getNodeParameter('name', i) as string;
-					const config = parseJsonParameter(this, 'agentConfig', i);
-					response = await omniRequest(this, 'POST', '/agents/create', { name, ...config });
+					const sections = this.getNodeParameter('contextBreakdown.sections', i, []) as IDataObject[];
+					const body: IDataObject = {
+						name: this.getNodeParameter('name', i) as string,
+						context_breakdown: sections.map((s) => ({
+							title: s.title,
+							body: s.body,
+							is_enabled: true,
+						})),
+					};
+					const welcomeMessage = this.getNodeParameter('welcomeMessage', i, '') as string;
+					if (welcomeMessage) body.welcome_message = welcomeMessage;
+					const callType = this.getNodeParameter('callType', i, '') as string;
+					if (callType) body.call_type = callType;
+
+					const extra = this.getNodeParameter('agentAdditionalFields', i, {}) as IDataObject;
+					if (extra.is_interruption_allowed !== undefined)
+						body.is_interruption_allowed = extra.is_interruption_allowed;
+					if (extra.is_welcome_message_dynamic !== undefined)
+						body.is_welcome_message_dynamic = extra.is_welcome_message_dynamic;
+					if (extra.modelName || extra.modelTemperature !== undefined) {
+						body.model = {
+							...(extra.modelName ? { model: extra.modelName } : {}),
+							...(extra.modelTemperature !== undefined
+								? { temperature: extra.modelTemperature }
+								: {}),
+						};
+					}
+					if (extra.voiceProvider || extra.voiceId || extra.voiceSpeed !== undefined) {
+						body.voice = {
+							...(extra.voiceProvider ? { provider: extra.voiceProvider } : {}),
+							...(extra.voiceId ? { voice_id: extra.voiceId } : {}),
+							...(extra.voiceSpeed !== undefined ? { speech_speed: extra.voiceSpeed } : {}),
+						};
+					}
+					Object.assign(body, parseJsonParameter(this, 'agentAdvanced', i));
+					response = await omniRequest(this, 'POST', '/agents/create', body);
 				} else if (resource === 'bulkCall' && operation === 'create') {
+					const options = this.getNodeParameter('bulkCallOptions', i, {}) as IDataObject;
+					if (typeof options.retry_config === 'string') {
+						options.retry_config = JSON.parse((options.retry_config as string) || '{}');
+					}
 					const body: IDataObject = {
 						name: this.getNodeParameter('name', i) as string,
 						phone_number_id: this.getNodeParameter('phoneNumberId', i) as string,
 						is_dynamic: this.getNodeParameter('isDynamic', i) as boolean,
-						...parseJsonParameter(this, 'bulkCallOptions', i),
+						...options,
 					};
 					if (!body.is_dynamic) {
 						const contacts = this.getNodeParameter('contactList', i, '[]');

@@ -45,6 +45,22 @@ export class OmniDimensionTrigger implements INodeType {
 				description:
 					'Optional comma-separated list of agent (bot) IDs. Events from other agents are ignored. Leave empty to accept all.',
 			},
+			{
+				displayName: 'Call Statuses',
+				name: 'callStatuses',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Busy', value: 'busy' },
+					{ name: 'Cancelled', value: 'cancelled' },
+					{ name: 'Completed', value: 'completed' },
+					{ name: 'Failed', value: 'failed' },
+					{ name: 'No Answer', value: 'no_answer' },
+					{ name: 'Voicemail Detected', value: 'voicemail_detected' },
+				],
+				default: [],
+				description:
+					'Only fire for these call statuses. Empty = all. The agent\'s Post-Call config must also have these statuses enabled, or OmniDimension never sends them.',
+			},
 		],
 	};
 
@@ -58,6 +74,11 @@ export class OmniDimensionTrigger implements INodeType {
 				// ack with 200 so OmniDimension doesn't retry, but don't start the workflow
 				return {};
 			}
+		}
+
+		const statuses = this.getNodeParameter('callStatuses', []) as string[];
+		if (statuses.length && !statuses.includes(String(body.call_status))) {
+			return {};
 		}
 
 		return {
