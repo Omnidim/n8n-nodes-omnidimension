@@ -99,3 +99,52 @@ test('builds the dispatch body the API expects', async () => {
 		from_number_id: 8,
 	});
 });
+
+// --- trigger ---
+const { OmniDimensionTrigger } = require('../dist/nodes/OmniDimension/OmniDimensionTrigger.node.js');
+
+function makeWebhookContext(params, body) {
+	return {
+		getBodyData: () => body,
+		getNodeParameter: (name, fallback) => (name in params ? params[name] : fallback),
+		helpers: { returnJsonArray: (d) => d },
+	};
+}
+
+const fire = (ctx) => OmniDimensionTrigger.prototype.webhook.call(ctx);
+
+test('trigger passes an event through when no filter is set', async () => {
+	const result = await fire(makeWebhookContext({}, { bot_id: 42, call_status: 'completed' }));
+	assert.ok(result.workflowData, 'expected the workflow to start');
+});
+
+test('trigger ignores an event from a different agent', async () => {
+	const result = await fire(
+		makeWebhookContext({ agentIds: '7, 8' }, { bot_id: 42, call_status: 'completed' }),
+	);
+	assert.strictEqual(result.workflowData, undefined);
+});
+
+test('trigger matches an agent listed with surrounding spaces', async () => {
+	const result = await fire(
+		makeWebhookContext({ agentIds: '7, 42' }, { bot_id: 42, call_status: 'completed' }),
+	);
+	assert.ok(result.workflowData, 'expected agent 42 to match "7, 42"');
+});
+
+test('trigger ignores a status the user did not select', async () => {
+	const result = await fire(
+		makeWebhookContext({ callStatuses: ['no_answer'] }, { bot_id: 42, call_status: 'completed' }),
+	);
+	assert.strictEqual(result.workflowData, undefined);
+});
+
+test('trigger fires for a selected status', async () => {
+	const result = await fire(
+		makeWebhookContext(
+			{ callStatuses: ['completed', 'no_answer'] },
+			{ bot_id: 42, call_status: 'completed' },
+		),
+	);
+	assert.ok(result.workflowData, 'expected completed to match the selection');
+});
