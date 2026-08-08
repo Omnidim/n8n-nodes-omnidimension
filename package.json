@@ -17,7 +17,13 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/omnidim-ai/n8n-nodes-omnidimension.git"
+		"url": "git+https://github.com/Omnidim/n8n-nodes-omnidimension.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Omnidim/n8n-nodes-omnidimension/issues"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"engines": {
 		"node": ">=20"
