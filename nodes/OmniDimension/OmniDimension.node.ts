@@ -18,13 +18,57 @@ async function omniRequest(
 	qs?: IDataObject,
 ): Promise<IDataObject> {
 	const credentials = await ctx.getCredentials('omniDimensionApi');
+	const baseUrl = String(credentials.baseUrl ?? '').replace(/\/+$/, '');
 	return ctx.helpers.httpRequestWithAuthentication.call(ctx, 'omniDimensionApi', {
 		method,
-		url: `${credentials.baseUrl}${path}`,
+		url: `${baseUrl}${path}`,
 		body,
 		qs,
 		json: true,
 	});
+}
+
+// Response arrays that should become one n8n item each, keyed by resource:operation.
+const LIST_KEYS: Record<string, string> = {
+	'agent:getAll': 'bots',
+	'bulkCall:getAll': 'records',
+	'call:getAllLogs': 'call_log_data',
+	'call:getLog': 'call_log_data',
+	'knowledgeBase:getAll': 'files',
+	'phoneNumber:getAll': 'phone_numbers',
+};
+
+// Several OmniDimension endpoints report failures with HTTP 200 and an error-shaped
+// body, so relying on the HTTP status alone would pass a silent failure downstream.
+export function assertNoApiError(
+	ctx: IExecuteFunctions,
+	response: IDataObject,
+	itemIndex: number,
+): void {
+	if (response?.status !== 'error' && response?.success !== false) return;
+	const message =
+		(response.message as string) ||
+		(response.error_description as string) ||
+		(response.error as string) ||
+		'The OmniDimension API returned an error';
+	throw new NodeOperationError(ctx.getNode(), message, { itemIndex });
+}
+
+function toId(
+	ctx: IExecuteFunctions,
+	value: unknown,
+	fieldName: string,
+	itemIndex: number,
+): number {
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed)) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			`${fieldName} must be a numeric ID, but got "${value}"`,
+			{ itemIndex },
+		);
+	}
+	return parsed;
 }
 
 export class OmniDimension implements INodeType {
@@ -738,9 +782,17 @@ export class OmniDimension implements INodeType {
 					response = await omniRequest(this, 'GET', `/agents/${agentId}`);
 				} else if (resource === 'agent' && operation === 'create') {
 					const sections = this.getNodeParameter('contextBreakdown.sections', i, []) as IDataObject[];
+					const filledSections = sections.filter((s) => String(s.body ?? '').trim());
+					if (!filledSections.length) {
+						throw new NodeOperationError(
+							this.getNode(),
+							'Add at least one Context Breakdown section with a body. This is the agent\'s instructions and OmniDimension requires it.',
+							{ itemIndex: i },
+						);
+					}
 					const body: IDataObject = {
 						name: this.getNodeParameter('name', i) as string,
-						context_breakdown: sections.map((s) => ({
+						context_breakdown: filledSections.map((s) => ({
 							title: s.title,
 							body: s.body,
 							is_enabled: true,
@@ -826,16 +878,25 @@ export class OmniDimension implements INodeType {
 					response = await omniRequest(this, 'DELETE', `/calls/bulk_call/${campaignId}`);
 				} else if (resource === 'call' && operation === 'dispatch') {
 					const body: IDataObject = {
-						agent_id: Number(this.getNodeParameter('agentId', i)),
+						agent_id: toId(this, this.getNodeParameter('agentId', i), 'Agent', i),
 						to_number: this.getNodeParameter('toNumber', i) as string,
 						call_context: parseJsonParameter(this, 'callContext', i),
 					};
 					const fromNumberId = this.getNodeParameter('fromNumberId', i, '') as string;
-					if (fromNumberId) body.from_number_id = Number(fromNumberId);
+					if (fromNumberId) {
+						body.from_number_id = toId(this, fromNumberId, 'From Number', i);
+					}
 					response = await omniRequest(this, 'POST', '/calls/dispatch', body);
 				} else if (resource === 'call' && operation === 'getLog') {
 					const callLogId = this.getNodeParameter('callLogId', i) as string;
 					response = await omniRequest(this, 'GET', `/calls/logs/${callLogId}`);
+					if (!(response.call_log_data as IDataObject[])?.length) {
+						throw new NodeOperationError(
+							this.getNode(),
+							`No call log found with ID "${callLogId}"`,
+							{ itemIndex: i },
+						);
+					}
 				} else if (resource === 'call' && operation === 'getAllLogs') {
 					const filters = this.getNodeParameter('callLogFilters', i, {}) as IDataObject;
 					response = await omniRequest(this, 'GET', '/calls/logs', undefined, filters);
@@ -870,7 +931,16 @@ export class OmniDimension implements INodeType {
 					);
 				}
 
-				returnData.push({ json: response, pairedItem: { item: i } });
+				assertNoApiError(this, response, i);
+
+				const records = response[LIST_KEYS[`${resource}:${operation}`]];
+				if (Array.isArray(records)) {
+					for (const record of records) {
+						returnData.push({ json: record as IDataObject, pairedItem: { item: i } });
+					}
+				} else {
+					returnData.push({ json: response, pairedItem: { item: i } });
+				}
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnData.push({ json: { error: error.message }, pairedItem: { item: i } });

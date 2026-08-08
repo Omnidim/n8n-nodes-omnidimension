@@ -39,7 +39,8 @@
 		"build": "tsc && mkdir -p dist/nodes/OmniDimension && cp nodes/OmniDimension/*.svg dist/nodes/OmniDimension/",
 		"dev": "tsc --watch",
 		"lint": "eslint credentials nodes",
-		"prepublishOnly": "npm run build && npm run lint"
+		"test": "npm run build && node --test test/node.test.js",
+		"prepublishOnly": "npm run build && npm run lint && node --test test/node.test.js"
 	},
 	"devDependencies": {
 		"@typescript-eslint/parser": "^8.65.0",

@@ -50,3 +50,10 @@ Verified community nodes must be published to npm **via GitHub Actions with prov
 ## API reference
 
 Base URL `https://backend.omnidim.io/api/v1`, Bearer auth. Full docs at [docs.omnidim.io](https://docs.omnidim.io).
+
+## Known limits
+
+- **Dropdowns load up to 150 records.** With more agents, numbers, or campaigns than that, use an expression to supply the ID directly.
+- **The trigger is a static webhook.** Paste its URL into the agent's Post-Call tab. Auto-subscribe arrives when the OmniDimension webhook subscription API ships.
+- **Deliveries are unsigned.** HMAC signature verification lands with the same backend work.
+- **Knowledge base accepts PDFs only** (an OmniDimension API constraint).

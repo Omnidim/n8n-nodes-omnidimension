@@ -18,7 +18,7 @@
       "name": "Get my agents",
       "type": "CUSTOM.omniDimension",
       "typeVersion": 1,
-      "position": [220, 0]
+      "position": [240, -120]
     },
     {
       "parameters": {
@@ -31,15 +31,17 @@
       "name": "Dispatch call",
       "type": "CUSTOM.omniDimension",
       "typeVersion": 1,
-      "position": [440, 0]
+      "position": [240, 100]
     }
   ],
   "connections": {
     "When clicking Test workflow": {
-      "main": [[{ "node": "Get my agents", "type": "main", "index": 0 }]]
-    },
-    "Get my agents": {
-      "main": [[{ "node": "Dispatch call", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          { "node": "Get my agents", "type": "main", "index": 0 },
+          { "node": "Dispatch call", "type": "main", "index": 0 }
+        ]
+      ]
     }
   },
   "pinData": {},
