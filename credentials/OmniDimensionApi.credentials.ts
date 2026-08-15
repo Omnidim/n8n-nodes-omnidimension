@@ -10,7 +10,8 @@ export class OmniDimensionApi implements ICredentialType {
 
 	displayName = 'OmniDimension API';
 
-	// eslint-disable-next-line n8n-nodes-base/cred-class-field-documentation-url-miscased
+	icon = { light: 'file:omnidimension.svg', dark: 'file:omnidimension.dark.svg' } as const;
+
 	documentationUrl = 'https://docs.omnidim.io/docs/api-reference';
 
 	properties: INodeProperties[] = [

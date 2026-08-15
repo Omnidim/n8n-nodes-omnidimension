@@ -7,8 +7,9 @@ import type {
 	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
+	JsonObject,
 } from 'n8n-workflow';
-import { NodeOperationError } from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 async function omniRequest(
 	ctx: IExecuteFunctions | ILoadOptionsFunctions,
@@ -75,15 +76,15 @@ export class OmniDimension implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'OmniDimension',
 		name: 'omniDimension',
-		icon: 'file:omnidimension.svg',
+		icon: { light: 'file:omnidimension.svg', dark: 'file:omnidimension.dark.svg' },
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Interact with OmniDimension voice AI agents',
 		defaults: { name: 'OmniDimension' },
 		usableAsTool: true,
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'omniDimensionApi', required: true }],
 		properties: [
 			{
@@ -946,7 +947,9 @@ export class OmniDimension implements INodeType {
 					returnData.push({ json: { error: error.message }, pairedItem: { item: i } });
 					continue;
 				}
-				throw error;
+				throw error instanceof NodeOperationError || error instanceof NodeApiError
+					? error
+					: new NodeApiError(this.getNode(), error as JsonObject, { itemIndex: i });
 			}
 		}
 
