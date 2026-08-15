@@ -20,7 +20,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - run: npm ci
+      # --ignore-scripts skips the native build of isolated-vm, a transitive dev
+      # dependency of n8n-workflow that needs Node >= 22 and that nothing here uses.
+      - run: npm ci --ignore-scripts
       - run: npm run lint
       - run: npm run build
       - run: node --test test/node.test.js
@@ -40,7 +42,7 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run build
       - run: node --test test/node.test.js
       - run: npm publish --provenance --access public
