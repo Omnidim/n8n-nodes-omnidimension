@@ -4,6 +4,12 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-08-16
+
+### Fixed
+
+- The icon washed out on light backgrounds. Hosts that render the dark variant on a light surface, such as the n8n Creator Portal listing, showed only the cyan stroke. Both variants now sit on a solid brand tile so they stay legible whatever background they land on.
+
 ## [0.1.1] - 2026-08-16
 
 ### Added
