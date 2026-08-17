@@ -9,11 +9,12 @@ n8n community node for [OmniDimension](https://omnidim.io) — voice AI agents t
 | Resource | Operations |
 |---|---|
 | Agent | Get Many, Get, Create |
+| Bulk Call | Create, Add Contact, Get, Get Many, Get Live Status, Pause, Resume, Reschedule, Cancel |
 | Call | Dispatch, Get Log, Get Many Logs |
 | Knowledge Base | Get Many, Upload (PDF) |
 | Phone Number | Get Many |
 
-Agent and From-Number fields are dynamic dropdowns loaded from your account.
+Agent, Campaign, and From-Number fields are dynamic dropdowns loaded from your account.
 
 **OmniDimension Trigger** — starts a workflow when a call completes. Copy the node's webhook URL into your agent's **Post-Call tab → Webhook** in the OmniDimension dashboard. Optional agent-ID filter on the node.
 

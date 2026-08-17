@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-omnidimension",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "n8n community node for OmniDimension voice AI — dispatch calls, manage agents, and trigger workflows on completed calls",
 	"keywords": [
 		"n8n-community-node-package",
