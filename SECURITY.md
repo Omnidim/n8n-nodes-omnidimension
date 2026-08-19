@@ -14,7 +14,7 @@ The API key grants full access to your OmniDimension account. Never paste it int
 
 ## Webhook trigger
 
-The OmniDimension Trigger node accepts unauthenticated POST requests at its webhook URL, and post-call deliveries are not currently signed. Treat the webhook URL as a secret, and use the node's Agent IDs filter so unexpected payloads do not start workflows. Signature verification will be added once the OmniDimension webhook subscription API ships.
+The OmniDimension Trigger node accepts POST requests at its webhook URL. Treat the webhook URL as a secret, and use the node's Agent IDs filter so unexpected payloads do not start workflows.
 
 ## Supported versions
 

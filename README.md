@@ -44,10 +44,6 @@ npx n8n
 
 Open http://localhost:5678, search "omni" in the node picker.
 
-## Publishing
-
-Verified community nodes must be published to npm **via GitHub Actions with provenance** (required since May 1, 2026) — see `.github/workflows/publish.yml`. Then submit at [creators.n8n.io](https://creators.n8n.io/nodes).
-
 ## API reference
 
 Base URL `https://backend.omnidim.io/api/v1`, Bearer auth. Full docs at [docs.omnidim.io](https://docs.omnidim.io).
@@ -55,6 +51,5 @@ Base URL `https://backend.omnidim.io/api/v1`, Bearer auth. Full docs at [docs.om
 ## Known limits
 
 - **Dropdowns load up to 150 records.** With more agents, numbers, or campaigns than that, use an expression to supply the ID directly.
-- **The trigger is a static webhook.** Paste its URL into the agent's Post-Call tab. Auto-subscribe arrives when the OmniDimension webhook subscription API ships.
-- **Deliveries are unsigned.** HMAC signature verification lands with the same backend work.
-- **Knowledge base accepts PDFs only** (an OmniDimension API constraint).
+- **The trigger receives the post-call webhook.** Paste its URL into the agent's Post-Call tab in the OmniDimension dashboard.
+- **Knowledge base accepts PDFs only.**

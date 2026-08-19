@@ -10,12 +10,11 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 const normalize = (url: string) => url.trim().replace(/\/+$/, '');
 
-// ponytail: verify-only webhook lifecycle. OmniDimension has no webhook
-// subscription API yet, so the destination URL is set on the agent's Post-Call
-// tab. create() deliberately does not write it: the only way to set it from here
-// is post_call_actions on PUT /agents/{id}, which replaces every post-call action
-// on the agent and would silently delete the user's email notifications. Swap
-// create/delete to POST/DELETE /api/v1/webhooks once that API ships.
+// Verify-only webhook lifecycle: the destination URL is set on the agent's
+// Post-Call tab in the dashboard, so create() only confirms it is wired and
+// never writes it. Writing it from here would mean PUT /agents/{id} with
+// post_call_actions, which replaces every post-call action on the agent and
+// would silently delete the user's other notifications.
 export class OmniDimensionTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'OmniDimension Trigger',
