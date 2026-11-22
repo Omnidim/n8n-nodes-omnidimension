@@ -1,6 +1,6 @@
 # n8n-nodes-omnidimension
 
-n8n community node for [OmniDimension](https://omnidim.io) — voice AI agents that make and receive phone calls.
+n8n community node for [OmniDimension](https://omnidim.io), voice AI agents that make and answer phone calls.
 
 ## Nodes
 
@@ -16,7 +16,7 @@ n8n community node for [OmniDimension](https://omnidim.io) — voice AI agents t
 
 Agent, Campaign, and From-Number fields are dynamic dropdowns loaded from your account.
 
-**OmniDimension Trigger** — starts a workflow when a call completes. Copy the node's webhook URL into your agent's **Post-Call tab → Webhook** in the OmniDimension dashboard. Optional agent-ID filter on the node.
+**OmniDimension Trigger** starts a workflow when a call ends. Copy the node's webhook URL into your agent's **Post-Call** tab, under **Webhook**, in the OmniDimension dashboard. The node can filter by agent IDs and call statuses.
 
 ## Credentials
 
@@ -51,5 +51,4 @@ Base URL `https://backend.omnidim.io/api/v1`, Bearer auth. Full docs at [docs.om
 ## Known limits
 
 - **Dropdowns load up to 150 records.** With more agents, numbers, or campaigns than that, use an expression to supply the ID directly.
-- **The trigger receives the post-call webhook.** Paste its URL into the agent's Post-Call tab in the OmniDimension dashboard.
 - **Knowledge base accepts PDFs only.**
